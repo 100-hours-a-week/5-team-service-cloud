@@ -1,0 +1,44 @@
+# cloud-pr-alert.yml
+name: PR Review Request Notification
+on:
+  pull_request:
+    types: [review_requested] # PR이 처음 열렸을 때만!
+
+jobs:
+  notify-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Notification to Reviewer
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_ID_VANI: "866419639282434048"
+          DISCORD_ID_HALAAND: "1462789390022610975"
+        run: |
+          # 1. 리뷰어로 지정된 사람의 GitHub 아이디 가져오기
+          REQUESTED_GITHUB_USER="${{ github.event.requested_team.name || github.event.requested_reviewer.login }}"
+          
+          # 2. GitHub 아이디를 Discord 멘션으로 변환 (매핑 로직)
+          case "$REQUESTED_GITHUB_USER" in
+            "SuperSon7")
+              MENTION="<@$DISCORD_ID_ELLA>"
+              ;;
+            "JI1047")
+              MENTION="<@DISCORD_ID_BRUNI>"
+              ;;
+            *)
+              # 매핑 안 된 사람이면 그냥 백엔드 팀 전체 호출 (안전장치)
+              MENTION="@CloudTeam (리뷰어 매핑 필요)"
+              ;;
+          esac
+          
+          # 3. 메시지 전송
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          AUTHOR="${{ github.actor }}"
+
+          MESSAGE="👀 **[코드 리뷰 요청]**\n\n$MENTION 님! **$AUTHOR** 님이 리뷰를 요청했습니다.\n\n제목: **$PR_TITLE**\n링크: $PR_URL"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{ \"content\": \"$MESSAGE\" }" \
+               $DISCORD_WEBHOOK
