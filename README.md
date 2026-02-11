@@ -60,13 +60,37 @@ make up                           # → feature/my-feature 코드로 전체 스�
 
 다른 서비스(Frontend, AI)도 마찬가지입니다. 각 폴더에서 원하는 브랜치를 체크아웃한 뒤 `make up`하면 그 코드로 빌드됩니다.
 
-### develop 최신으로 리셋하고 싶을 때
+### develop 최신으로 동기화하고 싶을 때
 
 ```bash
-make pull    # 전체 레포 develop pull → 재빌드 → 재시작
+make pull    # develop 브랜치인 레포만 pull → 재빌드 → 재시작
 ```
 
-> **주의**: `make pull`은 모든 레포를 develop으로 체크아웃합니다. 작업 중인 브랜치가 있으면 날아가니까, 작업 중에는 사용하지 마세요.
+`make pull`은 **develop 브랜치에 있는 레포만** pull합니다. 다른 브랜치에서 작업 중인 레포는 자동으로 스킵되므로 안전합니다.
+
+```
+  Frontend: pulling develop...       ← develop이므로 pull
+  Backend: on 'feature/auth' → skipped  ← 작업 중이므로 스킵
+  AI: pulling develop...             ← develop이므로 pull
+```
+
+### 개별 레포만 pull하고 싶을 때
+
+```bash
+make pull-fe   # Frontend 현재 브랜치 pull
+make pull-be   # Backend 현재 브랜치 pull
+make pull-ai   # AI 현재 브랜치 pull
+```
+
+현재 체크아웃된 브랜치를 그대로 pull합니다. 재빌드는 하지 않으므로 필요하면 `make up`을 별도로 실행하세요.
+
+### 모든 레포를 현재 브랜치 기준으로 동기화
+
+```bash
+make sync    # 모든 레포의 현재 브랜치 pull → 재빌드 → 재시작
+```
+
+`make pull`과 달리 develop 여부와 관계없이 각 레포의 현재 브랜치를 pull합니다.
 
 ### IDE로 개발할 때 (권장)
 
@@ -98,4 +122,4 @@ make help          # 전체 명령어 목록
 - Frontend 소스 변경 후 재빌드: `make clean && make up`
 - 80 포트 충돌 시: `lsof -i :80`으로 확인 후 종료
 - `make up`은 현재 디스크의 코드를 빌드 (브랜치 무관)
-- `make pull`은 develop으로 전환되니 작업 중에는 사용 금지
+- `make pull`은 develop 브랜치인 레포만 pull (작업 중인 레포는 자동 스킵)

@@ -6,7 +6,8 @@ FE_REPO    := https://github.com/$(GITHUB_ORG)/5-team-service-fe.git
 BE_REPO    := https://github.com/$(GITHUB_ORG)/5-team-service-be.git
 AI_REPO    := https://github.com/$(GITHUB_ORG)/5-team-service-ai.git
 
-.PHONY: help setup pull up down restart build logs logs-be logs-fe logs-ai \
+.PHONY: help setup pull pull-fe pull-be pull-ai sync up down restart build \
+        logs logs-be logs-fe logs-ai logs-chat \
         logs-nginx logs-mysql logs-redis ps clean redis-cli mysql-cli deps
 
 help: ## Show available commands
@@ -26,11 +27,50 @@ setup: ## Clone all repos and prepare .env
 	@[ -f .env ] || cp .env.example .env
 	@echo "Setup complete. Edit .env if needed, then run: make up"
 
-pull: ## Pull develop for all repos, rebuild and restart
-	@echo "==> Pulling $(BRANCH) for all repos..."
-	@git -C Frontend fetch origin && git -C Frontend checkout $(BRANCH) && git -C Frontend pull origin $(BRANCH)
-	@git -C Backend  fetch origin && git -C Backend  checkout $(BRANCH) && git -C Backend  pull origin $(BRANCH)
-	@git -C AI       fetch origin && git -C AI       checkout $(BRANCH) && git -C AI       pull origin $(BRANCH)
+## Helper: pull a single repo safely
+## Usage: $(call safe_pull,<dir>)
+## - If on develop → fetch + pull
+## - If on another branch → skip with warning
+define safe_pull
+	@CURRENT=$$(git -C $(1) rev-parse --abbrev-ref HEAD 2>/dev/null); \
+	if [ "$$CURRENT" = "$(BRANCH)" ]; then \
+		echo "  $(1): pulling $(BRANCH)..."; \
+		git -C $(1) pull origin $(BRANCH); \
+	else \
+		echo "  $(1): on '$$CURRENT' (not $(BRANCH)) → skipped"; \
+	fi
+endef
+
+## Helper: pull current branch of a repo regardless of branch name
+define force_pull
+	@CURRENT=$$(git -C $(1) rev-parse --abbrev-ref HEAD 2>/dev/null); \
+	echo "  $(1): pulling $$CURRENT..."; \
+	git -C $(1) pull origin $$CURRENT
+endef
+
+pull: ## Pull develop (skip repos on other branches), rebuild
+	@echo "==> Pulling $(BRANCH) for repos on $(BRANCH)..."
+	$(call safe_pull,Frontend)
+	$(call safe_pull,Backend)
+	$(call safe_pull,AI)
+	@echo "==> Rebuilding and restarting..."
+	$(COMPOSE) up --build -d
+	@echo "Done. Run 'make ps' to check status."
+
+pull-fe: ## Pull current branch for Frontend only
+	$(call force_pull,Frontend)
+
+pull-be: ## Pull current branch for Backend only
+	$(call force_pull,Backend)
+
+pull-ai: ## Pull current branch for AI only
+	$(call force_pull,AI)
+
+sync: ## Pull current branch for ALL repos (regardless of branch), rebuild
+	@echo "==> Syncing all repos (current branch)..."
+	$(call force_pull,Frontend)
+	$(call force_pull,Backend)
+	$(call force_pull,AI)
 	@echo "==> Rebuilding and restarting..."
 	$(COMPOSE) up --build -d
 	@echo "Done. Run 'make ps' to check status."
