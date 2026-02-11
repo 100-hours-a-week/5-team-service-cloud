@@ -23,9 +23,17 @@ setup: ## Clone all repos and prepare .env files
 	@[ -d Frontend/.git ] || git clone -b $(BRANCH) $(FE_REPO) Frontend
 	@[ -d Backend/.git ]  || git clone -b $(BRANCH) $(BE_REPO) Backend
 	@[ -d AI/.git ]       || git clone -b $(BRANCH) $(AI_REPO) AI
-	@[ -f .env ]          || cp .env.example .env
-	@[ -f Backend/.env ]  || cp Backend/.env.example Backend/.env
-	@[ -f AI/.env ]       || cp AI/.env.example AI/.env
+	@[ -f .env ] || cp .env.example .env
+	@if [ -f Backend/.env.example ] && [ ! -f Backend/.env ]; then \
+		cp Backend/.env.example Backend/.env; \
+	elif [ ! -f Backend/.env ]; then \
+		echo "  [WARN] Backend/.env.example not found. Create Backend/.env manually."; \
+	fi
+	@if [ -f AI/.env.example ] && [ ! -f AI/.env ]; then \
+		cp AI/.env.example AI/.env; \
+	elif [ ! -f AI/.env ]; then \
+		echo "  [WARN] AI/.env.example not found. Create AI/.env manually."; \
+	fi
 	@echo ""
 	@echo "Setup complete! Edit the following .env files with actual values:"
 	@echo "  1. .env            — DB credentials (MySQL root password)"
