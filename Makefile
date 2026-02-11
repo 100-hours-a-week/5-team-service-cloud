@@ -19,28 +19,12 @@ help: ## Show available commands
 
 # ─── Setup & Sync ────────────────────────────────────────────
 
-setup: ## Clone all repos and prepare .env files
+setup: ## Clone all repos and prepare .env
 	@[ -d Frontend/.git ] || git clone -b $(BRANCH) $(FE_REPO) Frontend
 	@[ -d Backend/.git ]  || git clone -b $(BRANCH) $(BE_REPO) Backend
 	@[ -d AI/.git ]       || git clone -b $(BRANCH) $(AI_REPO) AI
 	@[ -f .env ] || cp .env.example .env
-	@if [ -f Backend/.env.example ] && [ ! -f Backend/.env ]; then \
-		cp Backend/.env.example Backend/.env; \
-	elif [ ! -f Backend/.env ]; then \
-		echo "  [WARN] Backend/.env.example not found. Create Backend/.env manually."; \
-	fi
-	@if [ -f AI/.env.example ] && [ ! -f AI/.env ]; then \
-		cp AI/.env.example AI/.env; \
-	elif [ ! -f AI/.env ]; then \
-		echo "  [WARN] AI/.env.example not found. Create AI/.env manually."; \
-	fi
-	@echo ""
-	@echo "Setup complete! Edit the following .env files with actual values:"
-	@echo "  1. .env            — DB credentials (MySQL root password)"
-	@echo "  2. Backend/.env    — JWT, Kakao OAuth, Zoom, AI API keys"
-	@echo "  3. AI/.env         — Gemini API key, DB connection"
-	@echo ""
-	@echo "Then run: make up"
+	@echo "Setup complete. Edit .env if needed, then run: make up"
 
 pull: ## Pull develop for all repos, rebuild and restart
 	@echo "==> Pulling $(BRANCH) for all repos..."
@@ -80,6 +64,9 @@ logs-be: ## Follow backend logs
 
 logs-fe: ## Follow frontend logs
 	$(COMPOSE) logs -f frontend
+
+logs-chat: ## Follow chat logs
+	$(COMPOSE) logs -f chat
 
 logs-ai: ## Follow AI logs
 	$(COMPOSE) logs -f ai
