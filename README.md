@@ -17,11 +17,12 @@ make setup
 
 `make setup` 실행 후 **.env 파일 3개**를 수정해야 합니다:
 
-| 파일 | 내용 |
-|------|------|
-| `.env` | DB 비밀번호 (`DB_PASSWORD`), DB 유저 (`DB_USERNAME`) |
-| `Backend/.env` | JWT, Kakao OAuth, Zoom, S3 등 |
-| `AI/.env` | Gemini API key 등 |
+| 파일                                                             | 내용                                             |
+|----------------------------------------------------------------|------------------------------------------------|
+| `.env`                                                         | DB 비밀번호 (`DB_PASSWORD`), DB 유저 (`DB_USERNAME`) |
+| `Backend/.env`                                                 | JWT, Kakao OAuth, Zoom, S3 등                   |
+| `Backend/api/main/src/resources/firebase-service-account.json` | 파이어베이스                                         |
+| `AI/.env`                                                      | Gemini API key 등                               |
 
 > 값은 팀 노션 참고
 
@@ -44,15 +45,38 @@ make clean    # 중지 + 데이터 삭제 (주의!)
 | MySQL | localhost:3307 (Workbench 등) |
 | Redis | localhost:6379 |
 
-## 일상 작업
+## 개발 워크플로우
+
+### 내 브랜치 코드를 Docker로 확인하고 싶을 때
+
+`make up`은 **디스크에 있는 코드 그대로** 빌드합니다. git 브랜치를 신경 쓰지 않습니다.
 
 ```bash
-# develop 최신 반영 (전체 pull → 재빌드)
-make pull
-
-# IDE 개발 (DB + Redis만 Docker, 나머지는 IDE에서 직접 실행)
-make deps
+cd Backend
+git checkout feature/my-feature   # 내 브랜치로 이동
+cd ..
+make up                           # → feature/my-feature 코드로 전체 스택 실행
 ```
+
+다른 서비스(Frontend, AI)도 마찬가지입니다. 각 폴더에서 원하는 브랜치를 체크아웃한 뒤 `make up`하면 그 코드로 빌드됩니다.
+
+### develop 최신으로 리셋하고 싶을 때
+
+```bash
+make pull    # 전체 레포 develop pull → 재빌드 → 재시작
+```
+
+> **주의**: `make pull`은 모든 레포를 develop으로 체크아웃합니다. 작업 중인 브랜치가 있으면 날아가니까, 작업 중에는 사용하지 마세요.
+
+### IDE로 개발할 때 (권장)
+
+Docker 안에서는 IDE 디버깅(breakpoint 등)이 안 됩니다. 평소 개발은 DB만 Docker로 띄우고 서비스는 IDE에서 직접 실행하세요.
+
+```bash
+make deps    # MySQL(localhost:3307) + Redis(localhost:6379)만 실행
+```
+
+이후 IDE에서 Backend/Frontend/AI를 평소처럼 실행하면 됩니다. 전체 통합 테스트가 필요할 때만 `make up`을 사용하세요.
 
 ## 로그 & 디버깅
 
@@ -65,6 +89,7 @@ make logs-ai       # AI
 make ps            # 서비스 상태
 make redis-cli     # Redis CLI
 make mysql-cli     # MySQL CLI
+make help          # 전체 명령어 목록
 ```
 
 ## 주의사항
@@ -72,4 +97,5 @@ make mysql-cli     # MySQL CLI
 - `make down` → 데이터 유지 / `make clean` → **데이터 삭제**
 - Frontend 소스 변경 후 재빌드: `make clean && make up`
 - 80 포트 충돌 시: `lsof -i :80`으로 확인 후 종료
-- 전체 명령어 목록: `make help`
+- `make up`은 현재 디스크의 코드를 빌드 (브랜치 무관)
+- `make pull`은 develop으로 전환되니 작업 중에는 사용 금지
