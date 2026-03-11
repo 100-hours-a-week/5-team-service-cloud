@@ -30,6 +30,7 @@ setup: ## Clone all repos and prepare .env
 	@[ -d AI/.git ]       || git clone -b $(BRANCH) $(AI_REPO) AI
 	@cp Dockerfile.local Backend/Dockerfile.local
 	@printf '**/build/\n!api/build/libs/doktori-api.jar\n!chat/build/libs/doktori-chat.jar\n.idea/\n.vscode/\n.DS_Store\n.git/\n.gitignore\nstaging-tests/\nqodana.yaml\ndocker-bake.hcl\n' > Backend/.dockerignore
+	@cp Dockerfile.frontend.local Frontend/Dockerfile.local
 	@[ -f .env ] || cp .env.example .env
 	@echo "Setup complete. Edit .env if needed, then run: make up"
 
