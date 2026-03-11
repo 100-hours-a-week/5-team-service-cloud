@@ -287,7 +287,7 @@ services:
   # cAdvisor — 컨테이너별 리소스 메트릭 (CPU, Memory, Network, Disk I/O)
   # ---------------------------------------------------------------------------
   cadvisor:
-    image: ghcr.io/google/cadvisor:v0.56.2
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
     container_name: cadvisor
     privileged: true
     volumes:
