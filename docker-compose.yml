@@ -83,6 +83,7 @@ services:
   backend:
     build:
       context: ./Backend
+      dockerfile: Dockerfile.local
       target: api
     env_file: ./Backend/.env
     environment:
@@ -128,6 +129,7 @@ services:
   chat:
     build:
       context: ./Backend
+      dockerfile: Dockerfile.local
       target: chat
     env_file: ./Backend/.env
     environment:
