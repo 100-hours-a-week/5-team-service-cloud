@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alloy가 remote_write로 메트릭을 push (호스트, MySQL, Spring Boot, Nginx, cAdvisor)
+# Prometheus는 --web.enable-remote-write-receiver 플래그로 수신
+
+scrape_configs:
+  # Prometheus 자체 메트릭
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]

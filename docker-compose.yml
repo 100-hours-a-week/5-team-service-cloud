@@ -9,7 +9,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
-      - db-net
+      - app-net
     healthcheck:
       test: ["CMD-SHELL", "mysql -u root -p$$MYSQL_ROOT_PASSWORD -e 'SELECT 1' 2>/dev/null"]
       interval: 5s
@@ -31,13 +31,43 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - db-net
+      - app-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
     deploy:
       resources:
@@ -63,13 +93,18 @@ services:
       AI_BASE_URL: "http://ai:8000/ai"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
     networks:
       - app-net
-      - db-net
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
@@ -81,7 +116,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
           cpus: '1.0'
     stop_grace_period: 30s
     logging:
@@ -102,13 +137,18 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
     networks:
       - app-net
-      - db-net
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/api/health || exit 1"]
@@ -120,7 +160,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1.5G
           cpus: '0.5'
     stop_grace_period: 30s
     logging:
@@ -140,7 +180,6 @@ services:
       DATABASE_URL: "mysql+pymysql://${DB_USERNAME}:${DB_PASSWORD}@mysql:3306/doktoridb"
     networks:
       - app-net
-      - db-net
     depends_on:
       mysql:
         condition: service_healthy
@@ -188,6 +227,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - frontend-static:/usr/share/nginx/_next/static:ro
       - frontend-public:/usr/share/nginx/public:ro
+      - nginx-logs:/var/log/nginx
     networks:
       - app-net
     depends_on:
@@ -207,14 +247,99 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ---------------------------------------------------------------------------
+  # Observability Agent (replaces node_exporter + mysqld_exporter + promtail)
+  # ---------------------------------------------------------------------------
+  alloy:
+    image: grafana/alloy:v1.9.0
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    volumes:
+      - alloy-data:/var/lib/alloy/data
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-logs:/var/log/nginx:ro
+    environment:
+      - MYSQL_DSN=root:${DB_PASSWORD}@(mysql:3306)/
+      - ALLOY_ENV=local
+    networks:
+      - app-net
+      - monitoring
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor — 컨테이너별 리소스 메트릭 (CPU, Memory, Network, Disk I/O)
+  # ---------------------------------------------------------------------------
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.56.2
+    container_name: cadvisor
+    privileged: true
+    volumes:
+      - /var/run:/var/run:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - app-net
+      - monitoring
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # nginx stub_status → Prometheus 메트릭 변환
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4
+    command:
+      - --nginx.scrape-uri=http://nginx:8888/nginx_status
+    networks:
+      - app-net
+    depends_on:
+      - nginx
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: '0.05'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 networks:
   app-net:
     driver: bridge
-  db-net:
-    driver: bridge
+  monitoring:
+    external: true
 
 volumes:
   mysql-data:
   redis-data:
+  rabbitmq-data:
+  nginx-logs:
+  alloy-data:
   frontend-static:
   frontend-public:

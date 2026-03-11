@@ -1,4 +1,5 @@
 COMPOSE := docker compose
+MON_COMPOSE := docker compose -f monitoring/docker-compose.yml
 BRANCH  ?= develop
 
 GITHUB_ORG := 100-hours-a-week
@@ -8,7 +9,10 @@ AI_REPO    := https://github.com/$(GITHUB_ORG)/5-team-service-ai.git
 
 .PHONY: help setup pull pull-fe pull-be pull-ai sync up down restart build \
         logs logs-be logs-fe logs-ai logs-chat \
-        logs-nginx logs-mysql logs-redis ps clean redis-cli mysql-cli deps
+        logs-nginx logs-mysql logs-redis logs-rabbitmq ps clean \
+        redis-cli mysql-cli deps \
+        mon-up mon-down mon-logs mon-ps \
+        all-up all-down all-ps
 
 help: ## Show available commands
 	@echo ""
@@ -120,6 +124,9 @@ logs-mysql: ## Follow MySQL logs
 logs-redis: ## Follow Redis logs
 	$(COMPOSE) logs -f redis
 
+logs-rabbitmq: ## Follow RabbitMQ logs
+	$(COMPOSE) logs -f rabbitmq
+
 # ─── CLI Access ──────────────────────────────────────────────
 
 redis-cli: ## Open Redis CLI
@@ -135,10 +142,51 @@ ps: ## Show service status
 
 # ─── Local IDE Development ───────────────────────────────────
 
-deps: ## Start only MySQL + Redis (for local IDE development)
-	$(COMPOSE) up -d mysql redis
+deps: ## Start only MySQL + Redis + RabbitMQ (for local IDE development)
+	$(COMPOSE) up -d mysql redis rabbitmq
 	@echo ""
-	@echo "  MySQL : localhost:3307"
-	@echo "  Redis : localhost:6379"
+	@echo "  MySQL    : localhost:3307"
+	@echo "  Redis    : localhost:6379"
+	@echo "  RabbitMQ : localhost:5672 (mgmt: localhost:15672)"
 	@echo ""
 	@echo "Run your service locally in IDE."
+
+# ─── Monitoring ──────────────────────────────────────────────
+
+mon-up: ## Start monitoring stack (Prometheus + Loki + Grafana)
+	$(MON_COMPOSE) up -d
+	@echo ""
+	@echo "  Prometheus : http://localhost:9090"
+	@echo "  Loki       : http://localhost:3100"
+	@echo "  Grafana    : http://localhost:3001 (admin / $${GF_ADMIN_PASSWORD:-admin})"
+	@echo ""
+
+mon-down: ## Stop monitoring stack
+	$(MON_COMPOSE) down
+
+mon-logs: ## Follow monitoring stack logs
+	$(MON_COMPOSE) logs -f
+
+mon-ps: ## Show monitoring stack status
+	$(MON_COMPOSE) ps
+
+# ─── All (App + Monitoring) ──────────────────────────────────
+
+all-up: mon-up up ## Start monitoring + all app services
+	@echo "All services + monitoring running."
+
+all-down: ## Stop everything (app + monitoring)
+	$(COMPOSE) down
+	$(MON_COMPOSE) down
+
+all-ps: ## Show all service status (app + monitoring)
+	@echo "=== App Services ==="
+	$(COMPOSE) ps
+	@echo ""
+	@echo "=== Monitoring ==="
+	$(MON_COMPOSE) ps
+
+all-clean: ## Stop and remove everything including all volumes
+	$(COMPOSE) down -v
+	$(MON_COMPOSE) down -v
+	@echo "All containers and volumes removed."

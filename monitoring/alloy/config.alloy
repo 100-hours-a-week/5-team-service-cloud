@@ -1,0 +1,170 @@
+// =============================================================================
+// Grafana Alloy Configuration — Local Development
+//
+// 대체하는 컴포넌트:
+//   node_exporter  → prometheus.exporter.unix (macOS에서는 제한적)
+//   mysqld_exporter → prometheus.exporter.mysql
+//   promtail       → loki.source.docker
+//   nginx-exporter → 사이드카 유지
+//
+// 환경변수:    ALLOY_ENV   (local)
+//              MYSQL_DSN   (root:pass@(mysql:3306)/)
+// =============================================================================
+
+// ─── MySQL 메트릭 (replaces mysqld_exporter:9104) ───────────────────────────
+prometheus.exporter.mysql "db" {
+  data_source_name = sys.env("MYSQL_DSN")
+}
+
+prometheus.scrape "mysql_metrics" {
+  targets         = prometheus.exporter.mysql.db.targets
+  forward_to      = [prometheus.relabel.add_env.receiver]
+  scrape_interval = "15s"
+}
+
+// ─── Spring Boot Actuator (API + Chat) ──────────────────────────────────────
+prometheus.scrape "spring_boot" {
+  targets = [
+    { "__address__" = "backend:8080", "app" = "api" },
+    { "__address__" = "chat:8081",    "app" = "chat" },
+  ]
+  metrics_path    = "/api/actuator/prometheus"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.add_env.receiver]
+}
+
+// ─── RabbitMQ 메트릭 (built-in prometheus plugin, port 15692) ────────────────
+prometheus.scrape "rabbitmq" {
+  targets = [
+    { "__address__" = "rabbitmq:15692", "app" = "rabbitmq" },
+  ]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.add_env.receiver]
+}
+
+// ─── Nginx 메트릭 (nginx-exporter 사이드카 scrape) ──────────────────────────
+prometheus.scrape "nginx" {
+  targets = [
+    { "__address__" = "nginx-exporter:9113", "app" = "nginx" },
+  ]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.add_env.receiver]
+}
+
+// ─── cAdvisor 메트릭 (컨테이너별 CPU/Memory/Network) ──────────────────────────
+prometheus.scrape "cadvisor" {
+  targets = [
+    { "__address__" = "cadvisor:8080" },
+  ]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.add_env.receiver]
+}
+
+// ─── 공통 라벨 (env, instance, job 정리) ─────────────────────────────────────
+prometheus.relabel "add_env" {
+  rule {
+    target_label = "env"
+    replacement  = sys.env("ALLOY_ENV")
+  }
+  rule {
+    source_labels = ["app"]
+    regex         = "(.+)"
+    target_label  = "instance"
+  }
+  rule {
+    source_labels = ["job"]
+    regex         = "prometheus\\.(?:scrape|exporter)\\.(.+?)(?:_metrics)?"
+    target_label  = "job"
+    replacement   = "$1"
+  }
+  rule {
+    source_labels = ["job"]
+    regex         = "(.+)_(.+)"
+    target_label  = "job"
+    replacement   = "$1-$2"
+  }
+  forward_to = [prometheus.remote_write.monitoring.receiver]
+}
+
+// ─── Prometheus Remote Write → monitoring network ─────────────────────────
+prometheus.remote_write "monitoring" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// =============================================================================
+// 로그 수집 (replaces promtail)
+// =============================================================================
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/.*(backend|chat|ai|frontend|nginx|mysql|rabbitmq).*"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/[^-]+-([^-]+)-.*"
+    target_label  = "app"
+  }
+}
+
+loki.source.docker "containers" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.docker_logs.output
+  forward_to = [loki.process.json_parse.receiver]
+}
+
+// ─── JSON 구조화 로그 파싱 (backend, chat 컨테이너) ────────────────────────────
+loki.process "json_parse" {
+  stage.match {
+    selector = "{app=~\"backend|chat\"}"
+
+    stage.json {
+      expressions = {
+        level    = "level",
+        logger   = "logger_name",
+        msg      = "message",
+        traceId  = "traceId",
+        thread   = "thread_name",
+      }
+    }
+
+    stage.labels {
+      values = {
+        level   = "",
+        traceId = "",
+      }
+    }
+  }
+
+  forward_to = [loki.relabel.add_env.receiver]
+}
+
+// ─── 공통 라벨 + Loki push ──────────────────────────────────────────────────
+loki.relabel "add_env" {
+  rule {
+    target_label = "env"
+    replacement  = sys.env("ALLOY_ENV")
+  }
+  rule {
+    source_labels = ["app"]
+    regex         = "(.+)"
+    target_label  = "instance"
+  }
+  forward_to = [loki.write.monitoring.receiver]
+}
+
+loki.write "monitoring" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
