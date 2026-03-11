@@ -213,9 +213,6 @@ services:
       dockerfile: Dockerfile.local
       args:
         NEXT_PUBLIC_API_BASE_URL: ""
-    volumes:
-      - frontend-static:/app/.next/static
-      - frontend-public:/app/public
     networks:
       - app-net
     restart: unless-stopped
@@ -231,8 +228,6 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - frontend-static:/usr/share/nginx/_next/static:ro
-      - frontend-public:/usr/share/nginx/public:ro
       - nginx-logs:/var/log/nginx
     networks:
       - app-net
@@ -347,5 +342,3 @@ volumes:
   rabbitmq-data:
   nginx-logs:
   alloy-data:
-  frontend-static:
-  frontend-public:
