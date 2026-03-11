@@ -98,6 +98,9 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
+      FIREBASE_CREDENTIALS_PATH: "file:/app/secrets/firebase-service-account.json"
+    volumes:
+      - ./Backend/api/src/main/resources/firebase-service-account.json:/app/secrets/firebase-service-account.json:ro
     networks:
       - app-net
     depends_on:
