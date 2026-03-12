@@ -265,7 +265,7 @@ services:
       - nginx-logs:/var/log/nginx:ro
     environment:
       - MYSQL_DSN=root:${DB_PASSWORD}@(mysql:3306)/
-      - ALLOY_ENV=local
+      - ALLOY_ENV=dev
     networks:
       - app-net
       - monitoring

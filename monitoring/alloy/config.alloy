@@ -7,7 +7,7 @@
 //   promtail       → loki.source.docker
 //   nginx-exporter → 사이드카 유지
 //
-// 환경변수:    ALLOY_ENV   (local)
+// 환경변수:    ALLOY_ENV   (dev)
 //              MYSQL_DSN   (root:pass@(mysql:3306)/)
 // =============================================================================
 
