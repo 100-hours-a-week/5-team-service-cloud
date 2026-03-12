@@ -16,19 +16,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "tags": [],
-      "targetBlank": false,
-      "title": "Prod System — USE",
-      "type": "link",
-      "url": "/d/prod-system/prod-system"
-    }
-  ],
+  "links": [],
   "panels": [
     {
       "collapsed": false,
@@ -53,7 +41,7 @@
       "id": 1,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(up{app=\"api\", env=\"$env\"})", "legendFormat": "", "refId": "A" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{app=\"api\", env=\"$env\"}", "legendFormat": "", "refId": "A" }
       ],
       "title": "API Status",
       "type": "stat"
@@ -74,7 +62,7 @@
       "id": 2,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(up{app=\"chat\", env=\"$env\"})", "legendFormat": "", "refId": "A" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{app=\"chat\", env=\"$env\"}", "legendFormat": "", "refId": "A" }
       ],
       "title": "Chat Status",
       "type": "stat"
@@ -91,7 +79,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 8, "y": 1 },
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [
@@ -112,7 +100,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 11, "y": 1 },
       "id": 4,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [
@@ -133,7 +121,28 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "gridPos": { "h": 4, "w": 3, "x": 14, "y": 1 },
+      "id": 8,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{app=\"rabbitmq\", env=\"$env\"}", "legendFormat": "", "refId": "A" }
+      ],
+      "title": "RabbitMQ Status",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "color": "red", "text": "DOWN" }, "1": { "color": "green", "text": "UP" } }, "type": "value" }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 17, "y": 1 },
       "id": 5,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [
@@ -358,7 +367,7 @@
       "id": 13,
       "options": {
         "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
-        "content": "### Quick Links\n\n| [JVM - API](/d/jvm-api/jvm-api) | [JVM - Chat](/d/jvm-chat/jvm-chat) | [HTTP RED](/d/http-red/http-red) | [Nginx](/d/nginx-observability/nginx-observability) | [MySQL](/d/mysql/mysql) | [System - Dev](/d/dev-ec2-resource/dev-ec2-resource) | [System - Prod](/d/prod-ec2-resource/prod-ec2-resource) | [Prod USE](/d/prod-system/prod-system) | [Logs](/d/logs/logs) |",
+        "content": "### Quick Links\n\n| [JVM - API](/d/jvm-api/jvm-api) | [JVM - Chat](/d/jvm-chat/jvm-chat) | [HTTP RED](/d/http-red/http-red) | [Nginx](/d/nginx-observability/nginx-observability) | [MySQL](/d/mysql/mysql) | [System - Dev](/d/dev-ec2-resource/dev-ec2-resource) | [System - Prod](/d/prod-ec2-resource/prod-ec2-resource) | [Logs](/d/logs/logs) |",
         "mode": "markdown"
       },
       "title": "",
